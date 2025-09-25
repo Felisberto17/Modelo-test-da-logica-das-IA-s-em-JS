@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IA Conversacional</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 600px;
+            height: 700px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 20px 20px 0 0;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+        }
+
+        .ai-message {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            margin-right: auto;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-radius: 0 0 20px 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        #userInput {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #userInput:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #sendBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        #sendBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-style: italic;
+            opacity: 0.7;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: scale(1); }
+            30% { transform: scale(1.3); }
+        }
+
+        .stats {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 IA Conversacional</h1>
+            <p>Sua assistente virtual inteligente</p>
+            <div class="stats">
+                Respostas: <span id="responseCount">0</span>
+            </div>
+        </div>
+        
+        <div class="chat-area" id="chatArea">
+            <div class="message ai-message">
+                Olá! Eu sou sua IA assistente. Posso responder perguntas, fazer cálculos, contar piadas e muito mais! Como posso ajudar você hoje?
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Digite sua mensagem..." maxlength="500">
+            <button id="sendBtn">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        class SimpleAI {
+            constructor() {
+                this.knowledge = new Map();
+                this.responses = {
+                    greetings: [
+                        "Olá! Como posso ajudar?",
+                        "Oi! O que você gostaria de saber?",
+                        "Seja bem-vindo! Em que posso ser útil?",
+                        "Olá! Estou aqui para conversar com você!"
+                    ],
+                    unknown: [
+                        "Interessante! Não tenho certeza sobre isso. Pode me explicar mais?",
+                        "Hmm, essa é nova para mim! Que tal me contar mais sobre o assunto?",
+                        "Ainda estou aprendendo sobre isso. Pode me dar mais detalhes?",
+                        "Não conheço essa informação ainda. Me ensina?"
+                    ],
+                    calculations: [
+                        "Deixe-me calcular isso para você!",
+                        "Processando o cálculo...",
+                        "Vou fazer as contas!"
+                    ]
+                };
+                this.conversationMemory = [];
+                this.userPreferences = {};
+                this.responseCount = 0;
+            }
+
+            learn(input, response) {
+                this.knowledge.set(input.toLowerCase(), response);
+                this.conversationMemory.push({ input, response, timestamp: Date.now() });
+            }
+
+            processInput(input) {
+                const lowercaseInput = input.toLowerCase();
+                
+                // Verificar cumprimentos
+                if (this.isGreeting(lowercaseInput)) {
+                    return this.getRandomResponse(this.responses.greetings);
+                }
+                
+                // Verificar cálculos matemáticos
+                if (this.isMath(lowercaseInput)) {
+                    return this.handleMath(lowercaseInput);
+                }
+                
+                // Verificar perguntas sobre nome
+                if (lowercaseInput.includes('qual é o seu nome') || lowercaseInput.includes('como você se chama')) {
+                    return "Eu sou uma IA criada em JavaScript! Você pode me dar um nome se quiser.";
+                }
+                
+                // Verificar piadas
+                if (lowercaseInput.includes('piada') || lowercaseInput.includes('conte uma piada')) {
+                    return this.tellJoke();
+                }
+                
+                // Verificar conhecimento aprendido
+                if (this.knowledge.has(lowercaseInput)) {
+                    return this.knowledge.get(lowercaseInput);
+                }
+                
+                // Processar perguntas sobre tempo
+                if (lowercaseInput.includes('que horas') || lowercaseInput.includes('hora')) {
+                    return `Agora são ${new Date().toLocaleTimeString('pt-BR')}`;
+                }
+                
+                // Processar perguntas sobre data
+                if (lowercaseInput.includes('que dia') || lowercaseInput.includes('data')) {
+                    return `Hoje é ${new Date().toLocaleDateString('pt-BR', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    })}`;
+                }
+                
+                // Verificar despedidas
+                if (this.isFarewell(lowercaseInput)) {
+                    return "Até logo! Foi ótimo conversar com você! 👋";
+                }
+                
+                // Resposta padrão para entrada desconhecida
+                return this.getRandomResponse(this.responses.unknown);
+            }
+
+            isGreeting(input) {
+                const greetingWords = ['olá', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'alo'];
+                return greetingWords.some(word => input.includes(word));
+            }
+
+            isFarewell(input) {
+                const farewellWords = ['tchau', 'adeus', 'até logo', 'bye', 'falou'];
+                return farewellWords.some(word => input.includes(word));
+            }
+
+            isMath(input) {
+                return /\d+\s*[\+\-\*\/]\s*\d+/.test(input) || 
+                       input.includes('calcule') || 
+                       input.includes('quanto é');
+            }
+
+            handleMath(input) {
+                try {
+                    // Extrair expressão matemática
+                    const mathExpression = input.match(/\d+\s*[\+\-\*\/]\s*\d+/);
+                    if (mathExpression) {
+                        const result = eval(mathExpression[0]);
+                        return `${this.getRandomResponse(this.responses.calculations)} O resultado é: ${result}`;
+                    }
+                    
+                    // Perguntas sobre cálculo
+                    if (input.includes('quanto é') || input.includes('calcule')) {
+                        return "Por favor, me dê uma expressão matemática! Exemplo: quanto é 2 + 2?";
+                    }
+                } catch (error) {
+                    return "Ops! Não consegui fazer esse cálculo. Tente algo como '2 + 2' ou '10 * 5'.";
+                }
+                
+                return "Não entendi a operação matemática. Pode reformular?";
+            }
+
+            tellJoke() {
+                const jokes = [
+                    "Por que os programadores preferem JavaScript? Porque é a única linguagem que entende suas undefined feelings! 😄",
+                    "O que um bit disse para o outro? 'Você está on ou off hoje?' 💻",
+                    "Por que a IA foi ao médico? Porque estava com vírus! 🤖",
+                    "Qual é o doce favorito dos programadores? Array de brigadeiro! 🍫",
+                    "Por que o computador foi ao psiquiatra? Porque tinha complexo de chip! 😂"
+                ];
+                return jokes[Math.floor(Math.random() * jokes.length)];
+            }
+
+            getRandomResponse(responses) {
+                return responses[Math.floor(Math.random() * responses.length)];
+            }
+
+            getResponseCount() {
+                return this.responseCount;
+            }
+
+            incrementResponseCount() {
+                this.responseCount++;
+            }
+        }
+
+        // Inicializar a IA
+        const ai = new SimpleAI();
+        const chatArea = document.getElementById('chatArea');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const responseCountEl = document.getElementById('responseCount');
+
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.textContent = message;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message ai-message typing';
+            typingDiv.innerHTML = 'Pensando<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            chatArea.appendChild(typingDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return typingDiv;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Adicionar mensagem do usuário
+            addMessage(message, true);
+            userInput.value = '';
+            sendBtn.disabled = true;
+
+            // Mostrar indicador de digitação
+            const typingIndicator = showTyping();
+
+            // Simular tempo de processamento
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500));
+
+            // Remover indicador de digitação
+            typingIndicator.remove();
+
+            // Processar e responder
+            const response = ai.processInput(message);
+            ai.incrementResponseCount();
+            responseCountEl.textContent = ai.getResponseCount();
+            
+            addMessage(response);
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !sendBtn.disabled) {
+                sendMessage();
+            }
+        });
+
+        // Focar no input ao carregar
+        userInput.focus();
+
+        // Adicionar algumas respostas pré-programadas
+        ai.learn("como você funciona", "Eu uso algoritmos simples de correspondência de padrões e uma base de conhecimento que cresce com nossas conversas!");
+        ai.learn("você é inteligente", "Obrigada! Estou sempre aprendendo e melhorando com cada conversa.");
+        ai.learn("qual é o sentido da vida", "42! Mas falando sério, acho que é encontrar alegria nas pequenas coisas e ajudar uns aos outros. 😊");
+    </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+# Modelo-test-da-logica-das-IA-s-em-JS
